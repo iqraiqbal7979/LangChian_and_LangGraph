@@ -1,8 +1,5 @@
 import warnings
-# --- Configuration & Setup ---
-# Ignore LangGraph deprecation warnings to keep the terminal output clean
-warnings.filterwarnings("ignore", category=UserWarning, module="langgraph")
-
+import os
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
 from langchain_groq import ChatGroq
@@ -10,38 +7,64 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent 
 from tavily import TavilyClient
 
-# Load environment variables (API Keys: GROQ_API_KEY, TAVILY_API_KEY)
+# --- Configuration & Setup ---
+# Ignore specific warnings to keep terminal output clean
+warnings.filterwarnings("ignore", category=UserWarning, module="langgraph")
+
+# Load environment variables
 load_dotenv()
 
-# Initialize Clients
-tavily = TavilyClient()
+# Verify essential API keys are present
+if not os.getenv("GROQ_API_KEY"):
+    raise ValueError("GROQ_API_KEY is missing from environment variables or .env file.")
+if not os.getenv("TAVILY_API_KEY"):
+    raise ValueError("TAVILY_API_KEY is missing from environment variables or .env file.")
 
 # --- Tool Definition ---
 @tool
 def search(query: str) -> str:
-    """Useful for searching the internet for job postings or information."""
-    results = tavily.search(query=query)
-    return str(results)
+    """Useful for searching the internet for job postings, current information, or technical details."""
+    try:
+        tavily_client = TavilyClient()
+        results = tavily_client.search(query=query)
+        return str(results)
+    except Exception as e:
+        return f"An error occurred during the search: {str(e)}"
 
-# Define tools list for the Agent
-tools = [search]
-llm = ChatGroq(temperature=0, model="llama-3.3-70b-versatile")
-
-# Initialize the ReAct Agent
-agent = create_react_agent(llm, tools)
+def initialize_agent():
+    """Initializes and returns the LangGraph ReAct Agent with Groq LLM."""
+    tools = [search]
+    # Using a high-performance open model via Groq
+    llm = ChatGroq(temperature=0.0, model="llama-3.3-70b-versatile")
+    return create_react_agent(llm, tools)
 
 # --- Main Execution ---
-def main():
-    print("Hello from langchain-course!")
-    # Define the user query and Invoke the agent
-    response = agent.invoke({
-        "messages": [HumanMessage(content="search for 3 job postings for an ai engineer using langchain in the bay area on linkedin")]
-    })
+def main() -> None:
+    print("🤖 Initializing AI Agent...")
+    agent = initialize_agent()
     
-    # Extract and print the final answer from the agent's message history
-    final_answer = response["messages"][-1].content
-    print("\n--- Agent Response ---")
-    print(final_answer)
+    # Define the user query
+    user_query = "Search for 3 job postings for an AI engineer using LangChain in the Bay Area on LinkedIn."
+    print(f"\nUser Query: {user_query}\n")
+    print("⏳ Searching and processing, please wait...\n")
     
+    try:
+        # Invoke the agent
+        response = agent.invoke({
+            "messages": [HumanMessage(content=user_query)]
+        })
+        
+        # Extract the final answer from the agent's message history
+        final_answer = response["messages"][-1].content
+        
+        print("=" * 50)
+        print("--- Agent Response ---")
+        print("=" * 50)
+        print(final_answer)
+        print("=" * 50)
+        
+    except Exception as e:
+        print(f"❌ An error occurred while running the agent: {str(e)}")
+
 if __name__ == "__main__":
     main()
