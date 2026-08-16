@@ -1,0 +1,15 @@
+# Environment variables & secrets
+.env
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# OS generated files & Graph outputs
+Thumbs.db
+.DS_Store
+*.png
